@@ -1,4 +1,4 @@
-{                               
+{
   "bridge": {
     "name": "Homebridge",
     "username": "CC:22:3D:E3:CE:30",
@@ -23,15 +23,6 @@
         "address_note": "Adafruit Bluefruit SPI Friend.",
 
         "services": [{
-            "name": "Thermometer",
-            "type": "TemperatureSensor",
-            "UUID": "1D8A68E0-E68E-4FED-943E-369099F5B499",
-            "characteristics": [{
-              "type": "CurrentTemperature",
-              "UUID": "1D8A68E1-E68E-4FED-943E-369099F5B499"
-            }]
-          },
-          {
             "name": "Neopixel Strip",
             "name_note": "Strip of 76 GRBW Neopixels.",
 
