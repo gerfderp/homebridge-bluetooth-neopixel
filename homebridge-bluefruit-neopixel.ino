@@ -18,24 +18,79 @@ int32_t temperatureCharacteristic;
 int32_t lightService;
 int32_t lightCharacteristic;
 int32_t hueCharacteristic;
+int32_t satCharacteristic;
+int32_t brightCharacteristic;
 
 union float_bytes {
   float value;
   uint8_t bytes[sizeof(float)];
 };
 
+float parsefloat(uint8_t *buffer) 
+{
+  float f = ((float *)buffer)[0];
+  return f;
+}
+
+float parseHex(const uint8_t * data, const uint32_t numBytes)
+{
+  uint32_t szPos;
+  String hex = "";//"0x";
+//  for (szPos=numBytes; szPos > 0; szPos--) 
+  for (szPos=0; szPos < numBytes; szPos++) 
+  {
+//    Serial.print(F("0x"));
+    // Append leading 0 for small values
+    if (data[szPos] <= 0xF)
+    {
+//      Serial.print(F("0"));
+//      Serial.print(data[szPos] & 0xf, HEX);
+      hex += String(data[szPos] & 0xf, HEX); 
+    }
+    else
+    {
+//      Serial.print(data[szPos] & 0xff, HEX);
+      hex += String(data[szPos] & 0xff, HEX); 
+    }
+    // Add a trailing space if appropriate
+    if ((numBytes > 1) && (szPos != numBytes - 1))
+    {
+//      Serial.print(F(" "));
+    }
+  }
+  Serial.println("parseHex");
+  Serial.print("hex String: ");
+  Serial.println(hex);
+  int  len = hex.length();
+  char charbuff[len+2];
+  hex.toCharArray(charbuff, len +2);
+  Serial.print("charbuff: ");
+  Serial.println(charbuff);
+  unsigned long ul = strtoul(charbuff, 0,16);
+  Serial.print("unsigned long: ");
+  Serial.println(ul);
+  float  f = *(float *)&ul;
+  Serial.print("float: ");
+  Serial.println(f);
+ return f;
+}
+
    #define PIN                     5
     #define NUMPIXELS              76
 /*=========================================================================*/
 
 Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRBW);
+  bool on = false;
+  float hue = 0.0;
+  float saturation = 100.0;
+  int brightness = 100;
 
 
 void setup(void) {
   Serial.begin(115200);
 
-//  ble.begin(/* true - useful for debugging */);
-  ble.begin(1);
+  ble.begin(/* true - useful for debugging */);
+//  ble.begin(1);
   ble.factoryReset();
   ble.info();
 
@@ -71,22 +126,34 @@ void setup(void) {
 
                             //    57   E5   4B   F0-  85   74-  47   BE-  9C   1D-  A0   DB   FC   8F   A1   83
   uint8_t lightServiceUUID[] = {0x57,0xE5,0x4B,0xF0,0x85,0x74,0x47,0xBE,0x9C,0x1D,0xA0,0xDB,0xFC,0x8F,0xA1,0x83};
-//  uint8_t lightServiceUUID[] = {0x1D,0x8A,0x68,0xE0,0xE6,0x8E,0x4F,0xED,0x94,0x3E,0x36,0x90,0x99,0xF5,0xB4,0x99};
+
   lightService = gatt.addService(lightServiceUUID);
   uint8_t lightCharacteristicUUID[] = {0x57,0xE5,0x4B,0xF1,0x85,0x74,0x47,0xBE,0x9C,0x1D,0xA0,0xDB,0xFC,0x8F,0xA1,0x83};
   lightCharacteristic = gatt.addCharacteristic(lightCharacteristicUUID,
                                                      GATT_CHARS_PROPERTIES_READ | GATT_CHARS_PROPERTIES_WRITE | GATT_CHARS_PROPERTIES_NOTIFY,
-                                                     sizeof(bool),sizeof(bool), BLE_DATATYPE_AUTO, "On");
+                                                     sizeof(bool),sizeof(bool), BLE_DATATYPE_BYTEARRAY, "On");
                                                  
   uint8_t hueCharacteristicUUID[] = {0x57,0xE5,0x4B,0xF2,0x85,0x74,0x47,0xBE,0x9C,0x1D,0xA0,0xDB,0xFC,0x8F,0xA1,0x83};
   hueCharacteristic = gatt.addCharacteristic(hueCharacteristicUUID,
                                                      GATT_CHARS_PROPERTIES_READ | GATT_CHARS_PROPERTIES_WRITE | GATT_CHARS_PROPERTIES_NOTIFY,
-                                                     sizeof(bool),sizeof(bool), BLE_DATATYPE_AUTO, "On");
+                                                     sizeof(float),sizeof(float), BLE_DATATYPE_BYTEARRAY, "Hue");
+
+  uint8_t satCharacteristicUUID[] = {0x57,0xE5,0x4B,0xF3,0x85,0x74,0x47,0xBE,0x9C,0x1D,0xA0,0xDB,0xFC,0x8F,0xA1,0x83};
+  satCharacteristic = gatt.addCharacteristic(satCharacteristicUUID,
+                                                     GATT_CHARS_PROPERTIES_READ | GATT_CHARS_PROPERTIES_WRITE | GATT_CHARS_PROPERTIES_NOTIFY,
+                                                     sizeof(float),sizeof(float), BLE_DATATYPE_BYTEARRAY, "Sat");
+
+  uint8_t brightCharacteristicUUID[] = {0x57,0xE5,0x4B,0xF4,0x85,0x74,0x47,0xBE,0x9C,0x1D,0xA0,0xDB,0xFC,0x8F,0xA1,0x83};
+  brightCharacteristic = gatt.addCharacteristic(brightCharacteristicUUID,
+                                                     GATT_CHARS_PROPERTIES_READ | GATT_CHARS_PROPERTIES_WRITE | GATT_CHARS_PROPERTIES_NOTIFY,
+                                                     sizeof(int),sizeof(int), BLE_DATATYPE_INTEGER, "Bright");
 
 
                                                      
-  Serial.print("lightCharacteristic: ");
-  Serial.println(lightCharacteristic);
+  Serial.print("hueCharacteristic: ");
+  Serial.println(hueCharacteristic);
+    Serial.print("brightCharacteristic: ");
+  Serial.println(brightCharacteristic);
   ble.reset();
   ble.setConnectCallback(centralConnect);
   ble.setDisconnectCallback(centralDisconnect);
@@ -97,7 +164,11 @@ void setup(void) {
     multiple times for multiple Chars ID  */
   ble.setBleGattRxCallback(lightCharacteristic, lightRX);
   ble.setBleGattRxCallback(hueCharacteristic, lightRX);
+  ble.setBleGattRxCallback(satCharacteristic, lightRX);
+  ble.setBleGattRxCallback(brightCharacteristic, lightRX);
 
+  
+  
 }
 
 
@@ -105,36 +176,82 @@ void lightRX(int32_t chars_id, uint8_t data[], uint16_t len)
 {
   Serial.print( F("[BLE GATT RX] (" ) );
   Serial.print(chars_id);
-  
   Serial.print(") ");
-  for (int i = 0; i < len; i++) { Serial.print(i); Serial.print(":"); Serial.print(data[i]);Serial.print("  ");}
-  if (chars_id == lightCharacteristic)
-  {
-
-//    for (int i = 0; i < len; i++) { Serial.print(i); Serial.print(":"); Serial.print(data[i]);Serial.print("  ");}
-
-    Serial.print(len);
-    
-    Serial.println("ENDDERP");
-    setLED(data[0]);
-  } 
+  for (int i = 0; i < len; i++) { Serial.print(i); Serial.print(":"); Serial.print(data[i]);Serial.print(" | ");}
+  
+  if (chars_id == lightCharacteristic) {
+      on = data[0];
+      String onstr = String(on);
+      gatt.setChar(lightCharacteristic, onstr[0], sizeof(onstr));
+  } else if (chars_id == hueCharacteristic) {
+    union float_bytes hueval = { .value = hue };
+    gatt.getChar(hueCharacteristic, hueval.bytes, sizeof(hueval));
+    hue = hueval.value;
+  } else if (chars_id == satCharacteristic) {
+    union float_bytes satval = { .value = saturation };
+    gatt.getChar(satCharacteristic, satval.bytes, sizeof(satval));
+    saturation = satval.value;
+  } else if (chars_id == brightCharacteristic) {
+    int32_t val;
+    memcpy(&val, data, len);
+    Serial.print("brightness read as: ");
+    Serial.println(val);
+    brightness = val;
+  } else {
+      Serial.print("chars_id: ");
+      Serial.println(chars_id);
+  }
+  Serial.println("ENDERP");
+  setLED(on, hue, saturation, brightness);  
 
 }
-void setLED(bool on) {
-  Serial.print("LED | ");
+
+
+void setLED(bool on, float hue, float saturation, int brightness) {
+  Serial.print("LED: ");
   Serial.print(on);
-  if (on) {
-    // turn on neopixel to red
-    for(uint8_t i=0; i<NUMPIXELS; i++) {
-      pixel.setPixelColor(i, pixel.Color(255,0,0)); // off
-    }
-  } else {
-    // turn off neopixel
+  Serial.print(" | HUE: ");
+  Serial.print(hue);
+  Serial.print(" | SAT: ");
+  Serial.print(saturation);
+  Serial.print(" | BRI: ");
+  Serial.println(brightness);
+  hue = max(0.0, min(360.0, hue));
+  saturation = max(0.0, min(100.0, saturation));
+  brightness = max(0, min(100, brightness));
+
+  unsigned int red, green, blue;
+  hsv2rgb(hue, saturation/100.0, brightness/100.0, &red, &green, &blue);
+
+  Serial.print("RGB LED | ");
+  Serial.print(on);
+  Serial.print(" HSB(");
+  Serial.print(hue);
+  Serial.print(",");
+  Serial.print(saturation);
+  Serial.print(",");
+  Serial.print(brightness);
+  Serial.print(") -> RGB(");
+  Serial.print(red);
+  Serial.print(",");
+  Serial.print(green);
+  Serial.print(",");
+  Serial.print(blue);
+  Serial.println(")");
+  
+  for(uint8_t i=0; i<NUMPIXELS; i++) {
+      pixel.setPixelColor(i, pixel.Color(red,green,blue)); // off
+  }
+  if (! on) {
     for(uint8_t i=0; i<NUMPIXELS; i++) {
       pixel.setPixelColor(i, pixel.Color(0,0,0)); // off
     }
+    pixel.show();
+    return;
+  } else {
+    pixel.show();
   }
-  pixel.show();
+ 
   
 }
 
@@ -151,9 +268,17 @@ void loop(void) {
 
   if (abs(averageCelsius.value - previousCelsius.value) > 0.50) {
     gatt.setChar(temperatureCharacteristic, averageCelsius.bytes, sizeof(averageCelsius));
-    Serial.print("Update temperature | ");
-    Serial.println(averageCelsius.value);
+//    Serial.print("Update temperature | ");
+//    Serial.println(averageCelsius.value);
   } 
+
+  
+//  static union float_bytes previous_hue = { .value = 240.0 };
+//  gatt.setChar(hueCharacteristic, previous_hue.bytes, sizeof(previous_hue));
+//  static union float_bytes previous_sat = { .value = 0.0 };
+//  gatt.setChar(satCharacteristic, previous_sat.bytes, sizeof(previous_sat.bytes));
+//  gatt.setChar(brightCharacteristic, brightness, sizeof(brightness));
+  
 
   delay(1000);
 }
@@ -170,6 +295,53 @@ void centralDisconnect(void) {
   Serial.print("Central disconnected | ");
   if (ble.sendCommandCheckOK("AT+BLEGETPEERADDR")) {
     Serial.println(ble.buffer);
+  }
+}
+
+void hsv2rgb(float hue, float saturation, float value,
+             unsigned int* red, unsigned int* green, unsigned int* blue) {
+  if (saturation == 0.0) {
+    *red   = (unsigned int) round(value * 255.0);
+    *green = (unsigned int) round(value * 255.0);
+    *blue  = (unsigned int) round(value * 255.0);
+  } else {
+    int h = ((int) floor(hue / 60.0) % 6);
+    float f = (hue / 60.0) - floor(hue / 60.0);
+    float p = value * (1.0 - saturation);
+    float q = value * (1.0 - saturation * f);
+    float t = value * (1.0 - (saturation * (1.0 - f)));
+    switch (h) {
+      case 0:
+        *red   = (unsigned int) round(value * 255.0);
+        *green = (unsigned int) round(t * 255.0);
+        *blue  = (unsigned int) round(p * 255.0);
+        break;
+      case 1:
+        *red   = (unsigned int) round(q * 255.0);
+        *green = (unsigned int) round(value * 255.0);
+        *blue  = (unsigned int) round(p * 255.0);
+        break;
+      case 2:
+        *red   = (unsigned int) round(p * 255.0);
+        *green = (unsigned int) round(value * 255.0);
+        *blue  = (unsigned int) round(t * 255.0);
+        break;
+      case 3:
+        *red   = (unsigned int) round(p * 255.0);
+        *green = (unsigned int) round(q * 255.0);
+        *blue  = (unsigned int) round(value * 255.0);
+        break;
+      case 4:
+        *red   = (unsigned int) round(t * 255.0);
+        *green = (unsigned int) round(p * 255.0);
+        *blue  = (unsigned int) round(value * 255.0);
+        break;
+      case 5:
+        *red   = (unsigned int) round(value * 255.0);
+        *green = (unsigned int) round(p * 255.0);
+        *blue  = (unsigned int) round(q * 255.0);
+        break;
+    }
   }
 }
 

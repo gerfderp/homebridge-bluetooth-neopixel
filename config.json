@@ -1,0 +1,69 @@
+{                               
+  "bridge": {
+    "name": "Homebridge",
+    "username": "CC:22:3D:E3:CE:30",
+    "port": 51826,
+    "pin": "031-45-154"
+  },
+  "description": "Configuration for Pi Zero W Homebridge.",
+  "accessories": [],
+  "platforms": [{
+      "platform": "Info",
+      "name": "Homebridge Info Server",
+      "port": 9876
+    },
+    {
+      "platform": "Bluetooth",
+      "name": "Homebridge Bluetooth",
+      "accessories": [{
+        "name": "Arduino BLE",
+        "name_note": "TV Pixels.",
+
+        "address": "C4:DA:B2:D3:C9:4F",
+        "address_note": "Adafruit Bluefruit SPI Friend.",
+
+        "services": [{
+            "name": "Thermometer",
+            "type": "TemperatureSensor",
+            "UUID": "1D8A68E0-E68E-4FED-943E-369099F5B499",
+            "characteristics": [{
+              "type": "CurrentTemperature",
+              "UUID": "1D8A68E1-E68E-4FED-943E-369099F5B499"
+            }]
+          },
+          {
+            "name": "Neopixel Strip",
+            "name_note": "Strip of 76 GRBW Neopixels.",
+
+            "type": "Lightbulb",
+            "type_note1": "Type of the service - i.e. Lightbulb, Switch, Lock, HumiditySensor, ...",
+            "type_note2": "Must match this list - https://github.com/KhaosT/HAP-NodeJS/blob/master/lib/gen/HomeKitTypes.js",
+            "type_note3": "Service.Lightbulb has a mandatory On characteristic and Brightness, Hue and Saturation are optional.",
+
+            "UUID": "57E54BF0-8574-47BE-9C1D-A0DBFC8FA183",
+
+            "characteristics": [{
+                "type": "On",
+                "UUID": "57E54BF1-8574-47BE-9C1D-A0DBFC8FA183"
+              },
+              {
+                "type": "Hue",
+                "UUID": "57E54BF2-8574-47BE-9C1D-A0DBFC8FA183"
+              },
+                {
+                  "type": "Saturation",
+                  "UUID": "57E54BF3-8574-47BE-9C1D-A0DBFC8FA183"
+                },
+                {
+                  "type": "Brightness",
+                  "UUID": "57E54BF4-8574-47BE-9C1D-A0DBFC8FA183"
+                }
+            ]
+          }
+        ],
+        "services_note1": "List of Bluetooth services that will be exposed to HomeKit.",
+        "services_note2": "Services with non-matching UUIDs are ignored."
+      }]
+    }
+  ]
+}
