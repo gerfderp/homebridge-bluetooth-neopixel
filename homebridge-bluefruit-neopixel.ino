@@ -12,79 +12,27 @@ int32_t modelCharacteristic;
 int32_t manufacturerCharacteristic;
 int32_t serialNumberCharacteristic;
 
-int32_t thermometerService;
-int32_t temperatureCharacteristic;
-
 int32_t lightService;
 int32_t lightCharacteristic;
 int32_t hueCharacteristic;
 int32_t satCharacteristic;
 int32_t brightCharacteristic;
 
+
 union float_bytes {
   float value;
   uint8_t bytes[sizeof(float)];
 };
 
-float parsefloat(uint8_t *buffer) 
-{
-  float f = ((float *)buffer)[0];
-  return f;
-}
-
-float parseHex(const uint8_t * data, const uint32_t numBytes)
-{
-  uint32_t szPos;
-  String hex = "";//"0x";
-//  for (szPos=numBytes; szPos > 0; szPos--) 
-  for (szPos=0; szPos < numBytes; szPos++) 
-  {
-//    Serial.print(F("0x"));
-    // Append leading 0 for small values
-    if (data[szPos] <= 0xF)
-    {
-//      Serial.print(F("0"));
-//      Serial.print(data[szPos] & 0xf, HEX);
-      hex += String(data[szPos] & 0xf, HEX); 
-    }
-    else
-    {
-//      Serial.print(data[szPos] & 0xff, HEX);
-      hex += String(data[szPos] & 0xff, HEX); 
-    }
-    // Add a trailing space if appropriate
-    if ((numBytes > 1) && (szPos != numBytes - 1))
-    {
-//      Serial.print(F(" "));
-    }
-  }
-  Serial.println("parseHex");
-  Serial.print("hex String: ");
-  Serial.println(hex);
-  int  len = hex.length();
-  char charbuff[len+2];
-  hex.toCharArray(charbuff, len +2);
-  Serial.print("charbuff: ");
-  Serial.println(charbuff);
-  unsigned long ul = strtoul(charbuff, 0,16);
-  Serial.print("unsigned long: ");
-  Serial.println(ul);
-  float  f = *(float *)&ul;
-  Serial.print("float: ");
-  Serial.println(f);
- return f;
-}
-
-   #define PIN                     5
-    #define NUMPIXELS              76
+#define PIN                     5
+#define NUMPIXELS              76
 /*=========================================================================*/
 
 Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRBW);
-  bool on = false;
-  float hue = 0.0;
-  float saturation = 100.0;
-  int brightness = 100;
-
+bool on = false;
+float hue = 0.0;
+float saturation = 100.0;
+int brightness = 100;
 
 void setup(void) {
   Serial.begin(115200);
@@ -115,15 +63,6 @@ void setup(void) {
                                                sizeof(serialNumber), sizeof(serialNumber), BLE_DATATYPE_STRING);
   gatt.setChar(serialNumberCharacteristic, serialNumber);
 
-  uint8_t thermometerServiceUUID[] = {0x1D,0x8A,0x68,0xE0,0xE6,0x8E,0x4F,0xED,0x94,0x3E,0x36,0x90,0x99,0xF5,0xB4,0x99};
-  thermometerService = gatt.addService(thermometerServiceUUID);
-  uint8_t thermometerCharacteristicUUID[] = {0x1D,0x8A,0x68,0xE1,0xE6,0x8E,0x4F,0xED,0x94,0x3E,0x36,0x90,0x99,0xF5,0xB4,0x99};
-  temperatureCharacteristic = gatt.addCharacteristic(thermometerCharacteristicUUID,
-                                                     GATT_CHARS_PROPERTIES_READ | GATT_CHARS_PROPERTIES_NOTIFY,
-                                                     sizeof(float), sizeof(float), BLE_DATATYPE_BYTEARRAY);
-
-
-
                             //    57   E5   4B   F0-  85   74-  47   BE-  9C   1D-  A0   DB   FC   8F   A1   83
   uint8_t lightServiceUUID[] = {0x57,0xE5,0x4B,0xF0,0x85,0x74,0x47,0xBE,0x9C,0x1D,0xA0,0xDB,0xFC,0x8F,0xA1,0x83};
 
@@ -152,7 +91,7 @@ void setup(void) {
                                                      
   Serial.print("hueCharacteristic: ");
   Serial.println(hueCharacteristic);
-    Serial.print("brightCharacteristic: ");
+  Serial.print("brightCharacteristic: ");
   Serial.println(brightCharacteristic);
   ble.reset();
   ble.setConnectCallback(centralConnect);
@@ -167,8 +106,6 @@ void setup(void) {
   ble.setBleGattRxCallback(satCharacteristic, lightRX);
   ble.setBleGattRxCallback(brightCharacteristic, lightRX);
 
-  
-  
 }
 
 
@@ -178,11 +115,11 @@ void lightRX(int32_t chars_id, uint8_t data[], uint16_t len)
   Serial.print(chars_id);
   Serial.print(") ");
   for (int i = 0; i < len; i++) { Serial.print(i); Serial.print(":"); Serial.print(data[i]);Serial.print(" | ");}
-  
+  Serial.println("  <-- end data");
   if (chars_id == lightCharacteristic) {
       on = data[0];
       String onstr = String(on);
-      gatt.setChar(lightCharacteristic, onstr[0], sizeof(onstr));
+//      gatt.setChar(lightCharacteristic, onstr[0], sizeof(onstr));
   } else if (chars_id == hueCharacteristic) {
     union float_bytes hueval = { .value = hue };
     gatt.getChar(hueCharacteristic, hueval.bytes, sizeof(hueval));
@@ -192,11 +129,7 @@ void lightRX(int32_t chars_id, uint8_t data[], uint16_t len)
     gatt.getChar(satCharacteristic, satval.bytes, sizeof(satval));
     saturation = satval.value;
   } else if (chars_id == brightCharacteristic) {
-    int32_t val;
-    memcpy(&val, data, len);
-    Serial.print("brightness read as: ");
-    Serial.println(val);
-    brightness = val;
+    brightness = parseHex(data, len);
   } else {
       Serial.print("chars_id: ");
       Serial.println(chars_id);
@@ -257,32 +190,8 @@ void setLED(bool on, float hue, float saturation, int brightness) {
 
 void loop(void) {
   ble.update();
-
-  static union float_bytes averageCelsius = { .value = 0.0 };
-  if (ble.sendCommandCheckOK("AT+HWGETDIETEMP")) {
-    float currentCelsius = atof(ble.buffer);
-    averageCelsius.value += (currentCelsius - averageCelsius.value) / 30.0;
-  }
-  union float_bytes previousCelsius = { .value = 0.0 };
-  gatt.getChar(temperatureCharacteristic, previousCelsius.bytes, sizeof(previousCelsius));
-
-  if (abs(averageCelsius.value - previousCelsius.value) > 0.50) {
-    gatt.setChar(temperatureCharacteristic, averageCelsius.bytes, sizeof(averageCelsius));
-//    Serial.print("Update temperature | ");
-//    Serial.println(averageCelsius.value);
-  } 
-
-  
-//  static union float_bytes previous_hue = { .value = 240.0 };
-//  gatt.setChar(hueCharacteristic, previous_hue.bytes, sizeof(previous_hue));
-//  static union float_bytes previous_sat = { .value = 0.0 };
-//  gatt.setChar(satCharacteristic, previous_sat.bytes, sizeof(previous_sat.bytes));
-//  gatt.setChar(brightCharacteristic, brightness, sizeof(brightness));
-  
-
   delay(1000);
 }
-
 
 void centralConnect(void) {
   Serial.print("Central connected | ");
@@ -343,5 +252,38 @@ void hsv2rgb(float hue, float saturation, float value,
         break;
     }
   }
+}
+
+int parseHex(const uint8_t * data, const uint32_t numBytes)
+{
+  uint32_t szPos;
+  String hex = "";
+
+  for (szPos=0; szPos < numBytes; szPos++) 
+  {
+    if (data[szPos] <= 0xF)
+    {
+      hex += String(data[szPos] & 0xf, HEX); 
+    }
+    else
+    {
+      hex += String(data[szPos] & 0xff, HEX); 
+    }
+  }
+  Serial.println("parseHex");
+  Serial.print("hex String: ");
+  Serial.println(hex);
+  int  len = hex.length();
+  char charbuff[len+2];
+  hex.toCharArray(charbuff, len +2);
+  Serial.print("charbuff: ");
+  Serial.println(charbuff);
+  unsigned long ul = strtoul(charbuff, 0,16);
+  int i = (int) ul;
+  Serial.print("unsigned long: ");
+  Serial.println(ul);
+  Serial.print("int: ");
+  Serial.println(i);
+  return i;
 }
 
